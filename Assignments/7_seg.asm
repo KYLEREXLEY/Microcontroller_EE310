@@ -26,7 +26,7 @@ REG22   equ     22h    //innner inner loop counter reg
     //initialization
     ORG 0x20    
     BANKSEL ANSELC
-    CLRF ANGELS
+    CLRF ANSELC
     BANKSEL LATC
     CLRF LATC
     BANKSEL TRISC
