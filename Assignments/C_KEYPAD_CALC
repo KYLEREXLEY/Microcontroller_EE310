@@ -1,0 +1,158 @@
+// Title: C keypad calculator
+//-----------------------------
+// Purpose: To make a culculator using a keypad
+// Dependencies: new=xc8_header.h
+// Compiler: IDE v6.20
+// Author: Kyler Exley 
+// OUTPUTS: 8 LEDS display
+// INPUTS: 4x4 keypad
+// Versions:
+//  	V6.20: 3/23/2024 - First version
+//-----------------------------gram Files/Microchip/xc8/v2.46/pic/include/proc/pic18f47k42.h"
+//#include "C:\Program Files\Microchip\xc8\v2.40\pic\include\proc\pic18f46k42"
+#include <xc.h> // must have this
+//#include "../../../../../Program Files/Microchip/xc8/v2.40/pic/include/proc/pic18f46k42.h"
+#include "C:/Program Files/Microchip/xc8/v2.46/pic/include/proc/pic18f47k42.h"
+//#include "C:\Program Files\Microchip\xc8\v2.40\pic\include\proc\pic18f46k42"
+int MS_delay();
+
+typedef unsigned char uchar;
+
+int isNumber(uchar, uchar);
+int keyToNumber(uchar, uchar);
+void getKey(uchar*, uchar*);
+
+void main(void) {
+    LATD=0;
+    LATC=0;
+    ANSELC=0;
+    LATA=0;
+    ANSELA=0;
+    ANSELD=0;
+    TRISA =0b00000000;
+    TRISD =0b00001111;  //sets portd 0-3 to inputs grounded and 4-7 to high outputs
+    TRISC =0b00000000;
+    PORTD =0b11110000;
+
+    
+    uchar COL = 4, ROW = 4; // Invalid
+    char X, Y, op;
+
+    do
+    {
+        getKey(&ROW, &COL); //go to get key for keypad input while input is a number
+    } while (!isNumber(ROW, COL));
+
+    X = keyToNumber(ROW, COL);  //sets a to keypad number
+    PORTA = 0b01000000 | X;     //sets porta to keypad # + turn on led indicator
+    MS_delay(10);
+
+    do
+    {
+        getKey(&ROW, &COL); //get keypad input while input is either add,sub,mul,div
+    } while (COL != 3);
+
+    op = ROW;   //sets op to the ROW value to test later which operation to use
+
+    do
+    {
+        getKey(&ROW, &COL); //get keypad input while input is a number
+    } while (!isNumber(ROW, COL));
+
+    Y = keyToNumber(ROW, COL);  //sets second number value
+    PORTA = Y;  //displays second value
+    PORTC=0b00000100;   //turns on second led indicator 
+    MS_delay(10);
+
+    do
+    {
+        getKey(&ROW, &COL); //get key for the final time while input is the # sign for equal
+    } while (ROW != 3 || COL != 2);
+    
+    PORTC=0;    //sets indicator to zero
+
+    if (op == 0)
+        PORTA = X + Y;  //if row zero add both numbers to display
+    else if (op == 1)
+    {
+        PORTA = (char) X - Y;   //if ROW 1 subtract both numbers in char form
+        PORTC = ((char) X - Y) >> 5; //sets indicator portC led to be what if has to in 2's compliment
+    }
+    else if (op == 2)
+        PORTA = X * Y;  //if row 2 multiply
+    else if (op == 3)
+        PORTA = X / Y;  //if row 3 divide
+    MS_delay(1000); //delay for to wait before inputs
+    uchar temp = 0;
+    while (temp == 0)
+    {
+        PORTD = 0xF0;
+        MS_delay(10);
+        CLRWDT();   //have to clr watch dog timer to get while loop to never end
+        temp = PORTD ^ 0xF0;    //wait function that doesnt end till key is pressed
+    }
+
+    return; //goes back to start
+}
+
+void getKey(uchar* ROW, uchar* COL)
+{
+    uchar temp = 0;
+
+    while (temp == 0)
+    {
+        PORTD = 0xF0;
+        MS_delay(10);
+        CLRWDT();
+        temp = PORTD ^ 0xF0;    //A never ending loop untill input is pressed
+    }
+    
+    PORTD=0xE0;
+    MS_delay(1);    //delay for potential debouncing
+    if(PORTD==0xE0) //after input is pressed immediatly check for which col its in
+        *COL=3;     //I did this by turning them low one at a time and checking if its set the row back to low or not
+    PORTD=0xD0;
+    MS_delay(1);
+    if(PORTD==0xD0)
+        *COL=2;
+    PORTD=0xB0;
+    MS_delay(1);
+    if(PORTD==0xB0)
+        *COL=1;
+    PORTD=0x70;
+    MS_delay(1);
+    if(PORTD==0x70)
+        *COL=0;
+    PORTD=0xF0;
+    if(temp==0x8)   //once input was pressed I know exactly what row its in 
+        *ROW=3;     //because I set all inputs my rows to low so they become high when pressed
+    if(temp==0x4)
+        *ROW=2;
+    if(temp==0x2)
+        *ROW=1;
+    if(temp==0x1)
+        *ROW=0;
+    while(PORTD != 0xF0) PORTD = 0xF0;  //while input is held pressed wait for release
+    MS_delay(10);
+}
+
+// Valid if isNumber(ROW, COL)
+int keyToNumber(uchar ROW, uchar COL)
+{
+    if (ROW == 3 && COL == 1)   //checks if its zero
+        return 0;
+    return ROW * 3 + COL + 1;   //if they were a number thats not zero this math sets X to correct value
+}
+
+int isNumber(uchar ROW, uchar COL)
+{
+    return (ROW < 3 && COL < 3) || (ROW == 3 && COL == 1); //math for telling if its a number or not
+}
+
+int MS_delay(unsigned int timer)    //delay function
+{
+    unsigned int delay = timer*100;
+    for(unsigned int i=0; i< delay; ++i){
+        asm("NOP");
+    }
+}
